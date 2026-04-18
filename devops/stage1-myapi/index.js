@@ -29,6 +29,14 @@ app.get('/health', (req, res) => {
     cpu: `${cpuUsage}%`,
     memory: `${memoryMB}MB`
   });
+});app.get('/health', (req, res) => {
+  const memoryMB = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
+  const cpuLoad = os.loadavg()[0].toFixed(2);
+  res.status(200).json({
+    message: 'healthy',
+    cpu: `${cpuLoad}%`,
+    memory: `${memoryMB}MB`
+  });
 });
 
 app.get('/me', (req, res) => {
