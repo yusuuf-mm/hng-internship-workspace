@@ -35,7 +35,7 @@ app.get('/me', (req, res) => {
   res.status(200).json({
     name: 'Yusuf Muhammad Musa',
     email: 'yusuf2000mm@gmail.com',
-    github: 'https://github.com/yusuuf-mm/hng-internship-workspace',
+    github: 'https://github.com/yusuuf-mm',           // profile URL
     repo: 'hng-internship-workspace'
   });
 });
