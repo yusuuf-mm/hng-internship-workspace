@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile Card</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<article class="card" data-testid="test-profile-card">
+
+  <!-- HEADER -->
+  <header>
+    <h2 data-testid="test-user-name">Yusuf Musa</h2>
+  </header>
+
+  <!-- AVATAR -->
+  <figure>
+    <img
+      src="https://via.placeholder.com/150"
+      alt="Profile photo of Yusuf Musa"
+      data-testid="test-user-avatar"
+    />
+  </figure>
+
+  <!-- BIO -->
+  <p data-testid="test-user-bio">
+    Backend developer and AI enthusiast passionate about building scalable systems and data-driven solutions.
+  </p>
+
+  <!-- TIME -->
+  <div data-testid="test-user-time" id="time" aria-live="polite">
+    Loading time...
+  </div>
+
+  <!-- SOCIAL LINKS -->
+  <nav>
+    <ul data-testid="test-user-social-links" class="socials">
+      <li>
+        <a href="https://twitter.com" target="_blank" rel="noopener noreferrer"
+          data-testid="test-user-social-twitter">Twitter</a>
+      </li>
+      <li>
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer"
+          data-testid="test-user-social-github">GitHub</a>
+      </li>
+      <li>
+        <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer"
+          data-testid="test-user-social-linkedin">LinkedIn</a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- HOBBIES -->
+  <section>
+    <h3>Hobbies</h3>
+    <ul data-testid="test-user-hobbies">
+      <li>Coding</li>
+      <li>Reading</li>
+      <li>Gaming</li>
+    </ul>
+  </section>
+
+  <!-- DISLIKES -->
+  <section>
+    <h3>Dislikes</h3>
+    <ul data-testid="test-user-dislikes">
+      <li>Poor network</li>
+      <li>Unreliable power</li>
+      <li>Messy code</li>
+    </ul>
+  </section>
+
+</article>
+
+<script src="script.js"></script>
+</body>
+</html>
