@@ -1,0 +1,13 @@
+Genderize edge cases: 
+If the response comes back with gender: null or count: 0, return: 
+json 
+{ "status": "error", "message": "No predic on available for the provided name" } 
+Addi onal requirements: - CORS header: Access-Control-Allow-Origin: *. Without this, the grading script cannot reach your 
+server - Response me under 500ms, excluding external API latency - The endpoint must handle mul ple requests without going down 
+Evalua on Criteria - Endpoint Availability — 10 points - Query Parameter Handling — 10 points - External API Integra on — 20 points - Data Extrac on Accuracy — 15 points - Confidence Logic — 15 points - Error Handling — 10 points - Edge Case Handling — 10 points - Response Format & Structure — 10 points - Total — 100 points 
+Submission instruc ons - Any language works - Render is not accepted. Vercel, Railway, Heroku, AWS, PXXL App, and similar pla orms are fine - The GitHub repo should include: - A clear README - Test your endpoint before submi ng. Confirm it returns the correct response format 
+Submission #IMPORTANT 
+Steps: 
+1. Confirm your server is live. Test from mul ple networks if you can 
+2. Go to #track-backend and run /submit 
+3. Submit: - Your API base URL (h ps://yourapp.domain.app) - Your GitHub repo link
