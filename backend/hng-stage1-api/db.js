@@ -6,12 +6,4 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-pool.connect((err) => {
-  if (err) {
-    console.error('❌ DB connection failed:', err.message);
-  } else {
-    console.log('✅ DB connected successfully');
-  }
-});
-
 module.exports = pool;
