@@ -1,0 +1,68 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  position: relative;
+}
+
+#priorityIndicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 12px 0 0 12px;
+}
+
+.high { background: red; }
+.medium { background: orange; }
+.low { background: green; }
+
+.header {
+  display: flex;
+  gap: 10px;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  list-style: none;
+  padding: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+#editForm {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+button:focus, input:focus, select:focus {
+  outline: 2px solid blue;
+}
