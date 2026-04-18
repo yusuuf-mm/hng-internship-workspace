@@ -12,9 +12,9 @@ app.get('/health', (req, res) => {
 
 app.get('/me', (req, res) => {
   res.status(200).json({
-    name: 'Your Full Name',       // <-- your real name
-    email: 'you@example.com',    // <-- your real email
-    github: 'https://github.com/yourusername'  // <-- your real GitHub
+    name: 'Yusuf Muhammad Musa',
+    email: 'yusuf2000mm@gmail.com',
+    github: 'https://github.com/yusuuf-mm'
   });
 });
 
