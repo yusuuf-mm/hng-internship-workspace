@@ -3,20 +3,22 @@ const pool = require('./db');
 
 async function migrate() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS profiles (
-      id TEXT PRIMARY KEY,
-      name TEXT UNIQUE NOT NULL,
-      gender TEXT,
-      gender_probability NUMERIC,
-      sample_size INTEGER,
-      age INTEGER,
-      age_group TEXT,
-      country_id TEXT,
-      country_probability NUMERIC,
-      created_at TIMESTAMPTZ DEFAULT NOW()
+    DROP TABLE IF EXISTS profiles;
+    CREATE TABLE profiles (
+      id                  TEXT PRIMARY KEY,
+      name                VARCHAR UNIQUE NOT NULL,
+      gender              VARCHAR,
+      gender_probability  FLOAT,
+      sample_size         INTEGER,
+      age                 INTEGER,
+      age_group           VARCHAR,
+      country_id          VARCHAR(2),
+      country_name        VARCHAR,
+      country_probability FLOAT,
+      created_at          TIMESTAMPTZ DEFAULT NOW()
     );
   `);
-  console.log('✅ Table created successfully!');
+  console.log('✅ Table created fresh with country_name!');
   process.exit(0);
 }
 
