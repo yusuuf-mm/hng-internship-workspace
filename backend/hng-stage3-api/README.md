@@ -1,284 +1,154 @@
-# HNG Stage 1 — Name Profile API
+# Insighta Labs+ — Profile Intelligence System (Stage 3)
 
-A RESTful API built with **Node.js + Express** that accepts a name, enriches it with data from 3 external APIs (gender, age, nationality), stores the result in a **PostgreSQL** database, and serves it through 4 clean endpoints.
+## Overview
 
-**Live URL:** https://hng-stage1-api.up.railway.app
+This is a demographic intelligence API built for Insighta Labs.
 
----
+It provides:
+- Advanced filtering and sorting of profile data
+- Natural language search parsing (rule-based)
+- GitHub OAuth authentication
+- JWT-based session management
+- Role-based access control (admin / analyst)
+- CSV export for administrative use
+- Rate limiting and request logging
 
-## What I Built & Learned
-
-### The Big Picture
-This API acts as a smart name research service:
-1. A client sends a name
-2. The API calls 3 external services simultaneously
-3. It classifies and saves the result to a database
-4. It serves that data back on demand — without repeating API calls for the same name
-
-### Flow Diagram
-```
-Client → POST /api/profiles { "name": "yusuf" }
-              │
-              ▼
-       Validate Input
-              │
-              ▼
-    Check DB (duplicate?)──── Yes → Return existing profile
-              │
-             No
-              │
-              ▼
-    Call 3 External APIs (in parallel)
-    ┌─────────────────────────────────┐
-    │ Genderize → gender + probability│
-    │ Agify     → predicted age       │
-    │ Nationalize → top country       │
-    └─────────────────────────────────┘
-              │
-              ▼
-    Classify age group (child/teenager/adult/senior)
-              │
-              ▼
-    Save to PostgreSQL → Return 201 response
-```
+The system is built using Node.js, Express, and PostgreSQL.
 
 ---
 
-## Tech Stack
+## System Architecture
 
-| Tool | Purpose |
-|------|---------|
-| Node.js | Runtime |
-| Express | Web framework / routing |
-| PostgreSQL | Database (hosted on Railway) |
-| `pg` | PostgreSQL client for Node.js |
-| `axios` | HTTP calls to external APIs |
-| `uuid` (v7) | Generates unique profile IDs |
-| `dotenv` | Loads environment variables from `.env` |
-| `cors` | Allows cross-origin requests |
-| Railway | Cloud hosting (API + Database) |
+The system is structured into four main layers:
 
----
+### 1. Backend API (Express)
+Handles all HTTP requests, authentication, business logic, and data processing.
 
-## Project Structure
+### 2. Database (PostgreSQL)
+Stores:
+- User profiles (2026 dataset)
+- Auth users and roles
 
-```
-hng-stage1-api/
-│
-├── index.js          ← App entry point, starts the Express server
-├── db.js             ← PostgreSQL connection pool
-├── migrate.js        ← One-time script to create the profiles table
-├── Procfile          ← Tells Railway how to start the app
-├── .env              ← Secret config (DATABASE_URL, PORT) — not committed
-├── .gitignore        ← Excludes node_modules and .env from Git
-│
-└── routes/
-    └── profiles.js   ← All 4 API endpoints live here
-```
+### 3. Authentication Layer
+- GitHub OAuth login
+- JWT token generation for session management
+- Stateless authentication model
+
+### 4. Middleware Layer
+- Role-Based Access Control (RBAC)
+- Rate limiting (security protection)
+- Request logging (system monitoring)
 
 ---
 
-## Database Schema
+## Authentication Flow
 
-```sql
-CREATE TABLE IF NOT EXISTS profiles (
-  id                  TEXT PRIMARY KEY,
-  name                TEXT UNIQUE NOT NULL,
-  gender              TEXT,
-  gender_probability  NUMERIC,
-  sample_size         INTEGER,
-  age                 INTEGER,
-  age_group           TEXT,
-  country_id          TEXT,
-  country_probability NUMERIC,
-  created_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
+1. User initiates login via GitHub OAuth
+2. GitHub redirects back with authorization code
+3. Backend exchanges code for access token
+4. Backend fetches GitHub user profile
+5. User is created or retrieved from database
+6. JWT token is generated containing:
+   - user id
+   - github_id
+   - role
+7. Token is used for all protected routes via Authorization header
 
-### Age Group Classification Logic
-| Age Range | Group |
-|-----------|-------|
-| 0 – 12 | `child` |
-| 13 – 19 | `teenager` |
-| 20 – 59 | `adult` |
-| 60+ | `senior` |
+---
+
+## Role-Based Access Control (RBAC)
+
+Two roles exist:
+
+### Admin
+- Full access to all endpoints
+- Can delete profiles
+- Can export CSV data
+
+### Analyst
+- Can view and search profiles
+- Cannot delete or export data
+
+Access is enforced using middleware that checks JWT role claims.
+
+---
+
+## Natural Language Parsing
+
+The `/api/profiles/search` endpoint uses rule-based parsing (no AI/LLM).
+
+### Approach:
+- Convert query to lowercase
+- Apply regex patterns
+- Map keywords to structured filters
+
+### Examples:
+
+- "young males from nigeria"
+  → gender=male, age 16–24, country=NG
+
+- "females above 30"
+  → gender=female, min_age=30
+
+- "adult males from kenya"
+  → gender=male, age_group=adult, country=KE
+
+### Limitations:
+- No AI or semantic understanding
+- Limited country dictionary
+- Cannot handle complex negations
+- Cannot process ambiguous phrases reliably
+
+---
+
+## Limitations
+
+- Rule-based NLP only (no machine learning)
+- No fuzzy matching for typos
+- Country mapping is predefined and limited
+- Complex sentence structures are not supported
+- No contextual understanding of queries
 
 ---
 
 ## API Endpoints
 
-### 1. `POST /api/profiles`
-Creates a new profile by calling 3 external APIs.
+### Authentication
+- GET /api/auth/github
+- GET /api/auth/github/callback
 
-**Request:**
-```json
-{ "name": "yusuf" }
-```
-
-**Response (201 Created):**
-```json
-{
-  "status": "success",
-  "data": {
-    "id": "019da02f-b14d-71ea-a6a4-93f717c34389",
-    "name": "yusuf",
-    "gender": "male",
-    "gender_probability": "0.98",
-    "sample_size": 298522,
-    "age": 50,
-    "age_group": "adult",
-    "country_id": "NG",
-    "country_probability": "0.18",
-    "created_at": "2026-04-18T10:42:51.170Z"
-  }
-}
-```
-
-**If name already exists (200):**
-```json
-{
-  "status": "success",
-  "message": "Profile already exists",
-  "data": { ... }
-}
-```
+### Profiles
+- GET /api/profiles (protected)
+- GET /api/profiles/search?q=
+- GET /api/profiles/:id
+- DELETE /api/profiles/:id (admin only)
+- GET /api/profiles/export/csv (admin only)
 
 ---
 
-### 2. `GET /api/profiles`
-Returns all profiles. Supports optional query filters.
+## Security Features
 
-**Filters:**
-```
-GET /api/profiles?gender=female
-GET /api/profiles?country_id=NG
-GET /api/profiles?age_group=adult
-GET /api/profiles?gender=male&country_id=NG
-```
-
-**Response (200):**
-```json
-{
-  "status": "success",
-  "count": 5,
-  "data": [ ... ]
-}
-```
+- JWT authentication
+- Role-based authorization
+- Rate limiting (anti-abuse protection)
+- Request logging for monitoring
 
 ---
 
-### 3. `GET /api/profiles/:id`
-Returns a single profile by its UUID.
+## Tech Stack
 
-**Response (200):**
-```json
-{
-  "status": "success",
-  "data": { ... }
-}
-```
-
-**If not found (404):**
-```json
-{ "status": "error", "message": "Profile not found" }
-```
+- Node.js
+- Express.js
+- PostgreSQL
+- JSON Web Token (JWT)
+- GitHub OAuth
+- json2csv
 
 ---
 
-### 4. `DELETE /api/profiles/:id`
-Deletes a profile by its UUID.
+## Notes
 
-- **Success:** `204 No Content`
-- **Not found:** `404 { "status": "error", "message": "Profile not found" }`
-
----
-
-## Error Handling
-
-| Status | Meaning |
-|--------|---------|
-| `400` | Missing or empty `name` field |
-| `404` | Profile ID does not exist |
-| `422` | Invalid data type sent |
-| `500` | Internal server error |
-| `502` | External API returned invalid response |
-
----
-
-## External APIs Used
-
-| API | Endpoint | What it returns |
-|-----|----------|----------------|
-| [Genderize.io](https://genderize.io) | `GET https://api.genderize.io?name={name}` | gender + probability + sample size |
-| [Agify.io](https://agify.io) | `GET https://api.agify.io?name={name}` | predicted age |
-| [Nationalize.io](https://nationalize.io) | `GET https://api.nationalize.io?name={name}` | list of countries with probabilities |
-
-All 3 are called **in parallel** using `Promise.all()` for speed.
-
----
-
-## Key Concepts I Learned
-
-### 1. REST API Design
-Building clean, predictable endpoints using HTTP methods (`GET`, `POST`, `DELETE`) and correct status codes (`200`, `201`, `204`, `400`, `404`).
-
-### 2. Database Integration
-Connecting Node.js to PostgreSQL using a connection pool (`pg`), writing parameterized queries (`$1`, `$2`) to prevent SQL injection, and running migrations to set up the schema.
-
-### 3. Parallel API Calls
-Using `Promise.all()` to call 3 APIs at the same time instead of waiting for each one — making the endpoint significantly faster.
-
-### 4. Deduplication Logic
-Checking if a profile already exists before hitting external APIs — saves API quota and speeds up repeat lookups.
-
-### 5. Environment Variables
-Storing secrets like `DATABASE_URL` in a `.env` file and loading them with `dotenv` — never hardcoding credentials in code.
-
-### 6. Cloud Deployment
-Deploying a Node.js + PostgreSQL app to Railway, linking environment variables between services, and generating a public live URL.
-
-### 7. Error Handling
-Returning structured JSON error responses instead of crashing — covering input validation, missing resources, and external API failures.
-
----
-
-## Running Locally
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/yusuuf-mm/hng-internship-workspace.git
-cd hng-internship-workspace/backend/hng-stage1-api
-
-# 2. Install dependencies
-npm install
-
-# 3. Create .env file
-echo "DATABASE_URL=your_postgres_url_here" > .env
-echo "PORT=3000" >> .env
-
-# 4. Create database table
-node migrate.js
-
-# 5. Start the server
-node index.js
-```
-
-Server runs at: `http://localhost:3000`
-
----
-
-## Deployment
-
-Hosted on [Railway](https://railway.app):
-- **API Service** → Node.js app auto-deployed from GitHub
-- **Postgres Service** → Managed PostgreSQL database
-- `DATABASE_URL` is linked internally between both services
-
----
-
-## Related Stages
-
-| Stage | Repo Path | Description |
-|-------|-----------|-------------|
-| Stage 0 | `backend/hng-stage0-api` | Simple info endpoint |
-| Stage 1 | `backend/hng-stage1-api` | This project — Name Profile API |
+- All timestamps are in UTC (ISO 8601 format)
+- UUID v7 used for profile IDs
+- All filters are combinable
+- API is designed for production-like usage patterns

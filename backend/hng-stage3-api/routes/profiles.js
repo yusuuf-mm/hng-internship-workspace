@@ -1,9 +1,10 @@
 const express = require('express');
 const axios = require('axios');
 const { v7: uuidv7 } = require('uuid');
-
+const { authenticate, authorize } = require("../middleware/auth.middleware");
 const router = express.Router();
 const pool = require('../db');
+const { Parser } = require("json2csv");
 
 /* =======================
    Helpers
@@ -25,14 +26,15 @@ function getPagination(page, limit) {
 }
 
 /* =======================
-   Routes
+   ROUTES (ALL PROTECTED)
 ======================= */
 
 /**
  * CREATE PROFILE
  * POST /
+ * (you can decide later if this should be admin-only)
  */
-router.post('/', async (req, res) => {
+router.post('/', authenticate, async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -42,7 +44,6 @@ router.post('/', async (req, res) => {
 
     const cleanName = name.trim().toLowerCase();
 
-    // Check if exists
     const existing = await pool.query(
       'SELECT * FROM profiles WHERE name = $1',
       [cleanName]
@@ -56,7 +57,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Call APIs
     const [genderRes, ageRes, countryRes] = await Promise.all([
       axios.get(`https://api.genderize.io?name=${cleanName}`),
       axios.get(`https://api.agify.io?name=${cleanName}`),
@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
     };
 
     const result = await pool.query(
-      `INSERT INTO profiles 
+      `INSERT INTO profiles
        (id, name, gender, gender_probability, sample_size, age, age_group, country_id, country_probability)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
@@ -115,10 +115,9 @@ router.post('/', async (req, res) => {
 });
 
 /**
- * SEARCH (must come before /:id)
- * GET /search
+ * SEARCH
  */
-router.get('/search', async (req, res) => {
+router.get('/search', authenticate, async (req, res) => {
   try {
     const { q, page, limit } = req.query;
 
@@ -129,17 +128,14 @@ router.get('/search', async (req, res) => {
     const query = q.toLowerCase();
     const filters = {};
 
-    // Gender
     if (/\bmales?\b/.test(query)) filters.gender = 'male';
     else if (/\bfemales?\b|\bwomen\b/.test(query)) filters.gender = 'female';
 
-    // Age group
     if (/\bchild|kids?\b/.test(query)) filters.age_group = 'child';
     else if (/\bteens?\b/.test(query)) filters.age_group = 'teenager';
     else if (/\badults?\b/.test(query)) filters.age_group = 'adult';
     else if (/\bseniors?|elderly\b/.test(query)) filters.age_group = 'senior';
 
-    // Age parsing
     const above = query.match(/(?:above|over|older than)\s+(\d+)/);
     if (above) filters.min_age = parseInt(above[1]);
 
@@ -156,35 +152,31 @@ router.get('/search', async (req, res) => {
       filters.min_age = 16;
       filters.max_age = 24;
     }
-// Country map
-const countryMap = {
-  'nigeria': 'NG', 'ghana': 'GH', 'kenya': 'KE', 'ethiopia': 'ET',
-  'tanzania': 'TZ', 'uganda': 'UG', 'south africa': 'ZA', 'angola': 'AO',
-  'senegal': 'SN', 'mali': 'ML', 'cameroon': 'CM', 'ivory coast': 'CI',
-  'zambia': 'ZM', 'zimbabwe': 'ZW', 'mozambique': 'MZ', 'somalia': 'SO',
-  'sudan': 'SD', 'morocco': 'MA', 'egypt': 'EG', 'algeria': 'DZ',
-  'tunisia': 'TN', 'benin': 'BJ', 'togo': 'TG', 'india': 'IN',
-  'pakistan': 'PK', 'china': 'CN', 'united kingdom': 'GB', 'uk': 'GB',
-  'united states': 'US', 'usa': 'US', 'france': 'FR', 'germany': 'DE',
-  'congo': 'CD', 'drc': 'CD', 'rwanda': 'RW', 'burundi': 'BI',
-  'malawi': 'MW', 'botswana': 'BW', 'namibia': 'NA', 'gabon': 'GA',
-  'madagascar': 'MG', 'niger': 'NE', 'chad': 'TD', 'libya': 'LY'
-};
 
-const fromMatch = query.match(/(?:from|in)\s+([a-z\s]+)/);
-if (fromMatch) {
-  const countryName = fromMatch[1].trim();
-  if (countryMap[countryName]) {
-    filters.country_id = countryMap[countryName];
-  }
-}
+    const countryMap = {
+      nigeria: 'NG', ghana: 'GH', kenya: 'KE', ethiopia: 'ET',
+      tanzania: 'TZ', uganda: 'UG', 'south africa': 'ZA', angola: 'AO',
+      senegal: 'SN', mali: 'ML', cameroon: 'CM', 'ivory coast': 'CI',
+      zambia: 'ZM', zimbabwe: 'ZW', mozambique: 'MZ', somalia: 'SO',
+      sudan: 'SD', morocco: 'MA', egypt: 'EG', algeria: 'DZ',
+      tunisia: 'TN', benin: 'BJ', togo: 'TG', india: 'IN',
+      pakistan: 'PK', china: 'CN', 'united kingdom': 'GB', uk: 'GB',
+      'united states': 'US', usa: 'US', france: 'FR', germany: 'DE',
+      congo: 'CD', drc: 'CD', rwanda: 'RW', burundi: 'BI',
+      malawi: 'MW', botswana: 'BW', namibia: 'NA', gabon: 'GA',
+      madagascar: 'MG', niger: 'NE', chad: 'TD', libya: 'LY'
+    };
 
-if (!Object.keys(filters).length) {
-  return res.status(400).json({ status: 'error', message: 'Unable to interpret query' });
-}
+    const fromMatch = query.match(/(?:from|in)\s+([a-z\s]+)/);
+    if (fromMatch && countryMap[fromMatch[1].trim()]) {
+      filters.country_id = countryMap[fromMatch[1].trim()];
+    }
 
     if (!Object.keys(filters).length) {
-      return res.status(400).json({ status: 'error', message: 'Unable to interpret query' });
+      return res.status(400).json({
+        status: 'error',
+        message: 'Unable to interpret query'
+      });
     }
 
     const { pageNum, limitNum, offset } = getPagination(page, limit);
@@ -204,6 +196,7 @@ if (!Object.keys(filters).length) {
       params.push(filters.country_id);
       conditions.push(`country_id = $${params.length}`);
     }
+	  A
     if (filters.min_age) {
       params.push(filters.min_age);
       conditions.push(`age >= $${params.length}`);
@@ -241,10 +234,9 @@ if (!Object.keys(filters).length) {
 });
 
 /**
- * GET ALL
- * GET /
+ * GET ALL PROFILES
  */
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     const {
       gender, age_group, country_id,
@@ -277,8 +269,6 @@ router.get('/', async (req, res) => {
     if (country_id) add(country_id.toUpperCase(), 'UPPER(country_id) =');
     if (min_age) add(parseInt(min_age), 'age >=');
     if (max_age) add(parseInt(max_age), 'age <=');
-    if (min_gender_probability) add(parseFloat(min_gender_probability), 'gender_probability >=');
-    if (min_country_probability) add(parseFloat(min_country_probability), 'country_probability >=');
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -309,9 +299,8 @@ router.get('/', async (req, res) => {
 
 /**
  * GET BY ID
- * GET /:id
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM profiles WHERE id = $1',
@@ -319,7 +308,10 @@ router.get('/:id', async (req, res) => {
     );
 
     if (!result.rows.length) {
-      return res.status(404).json({ status: 'error', message: 'Profile not found' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Profile not found'
+      });
     }
 
     return res.status(200).json({
@@ -328,16 +320,14 @@ router.get('/:id', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
     return res.status(500).json({ status: 'error', message: 'Server error' });
   }
 });
 
 /**
  * DELETE
- * DELETE /:id
  */
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticate, authorize("admin"), async (req, res) => {
   try {
     const result = await pool.query(
       'DELETE FROM profiles WHERE id = $1 RETURNING id',
@@ -345,14 +335,49 @@ router.delete('/:id', async (req, res) => {
     );
 
     if (!result.rows.length) {
-      return res.status(404).json({ status: 'error', message: 'Profile not found' });
+      return res.status(404).json({
+        status: 'error',
+        message: 'Profile not found'
+      });
     }
 
     return res.status(204).send();
 
   } catch (err) {
-    console.error(err);
     return res.status(500).json({ status: 'error', message: 'Server error' });
+  }
+});
+
+router.get("/export/csv", authenticate, authorize("admin"), async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM profiles");
+
+    const fields = [
+      "id",
+      "name",
+      "gender",
+      "gender_probability",
+      "age",
+      "age_group",
+      "country_id",
+      "country_name",
+      "country_probability",
+      "created_at"
+    ];
+
+    const parser = new Parser({ fields });
+    const csv = parser.parse(result.rows);
+
+    res.header("Content-Type", "text/csv");
+    res.attachment("profiles.csv");
+
+    return res.send(csv);
+
+  } catch (err) {
+    return res.status(500).json({
+      status: "error",
+      message: "Failed to export CSV"
+    });
   }
 });
 

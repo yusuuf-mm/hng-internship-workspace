@@ -6,6 +6,11 @@ const cors = require('cors');
 const profileRoutes = require('./routes/profiles');
 
 const app = express();
+const apiLimiter = require("./middleware/rateLimit");
+const logger = require("./middleware/logger");
+
+app.use(logger);
+app.use(apiLimiter);
 
 app.use(cors());
 app.use(express.json());
