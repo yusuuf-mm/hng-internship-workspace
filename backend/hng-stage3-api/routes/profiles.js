@@ -327,26 +327,34 @@ router.get('/:id', authenticate, async (req, res) => {
 /**
  * DELETE
  */
-router.delete('/:id', authenticate, authorize("admin"), async (req, res) => {
-  try {
-    const result = await pool.query(
-      'DELETE FROM profiles WHERE id = $1 RETURNING id',
-      [req.params.id]
-    );
+router.delete(
+  '/:id',
+  authenticate,
+  authorize('admin'),
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        'DELETE FROM profiles WHERE id = $1 RETURNING id',
+        [req.params.id]
+      );
 
-    if (!result.rows.length) {
-      return res.status(404).json({
+      if (!result.rows.length) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Profile not found'
+        });
+      }
+
+      return res.status(204).send();
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({
         status: 'error',
-        message: 'Profile not found'
+        message: 'Server error'
       });
     }
-
-    return res.status(204).send();
-
-  } catch (err) {
-    return res.status(500).json({ status: 'error', message: 'Server error' });
   }
-});
+);
 
 router.get("/export/csv", authenticate, authorize("admin"), async (req, res) => {
   try {
