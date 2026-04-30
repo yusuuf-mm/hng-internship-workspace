@@ -234,7 +234,7 @@ router.get('/search', async (req, res) => {
 /**
  * GET ALL PROFILES
  */
-router.get('/', authenticate, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const {
       gender, age_group, country_id,
@@ -298,7 +298,7 @@ router.get('/', authenticate, async (req, res) => {
 /**
  * GET BY ID
  */
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM profiles WHERE id = $1',
@@ -327,8 +327,6 @@ router.get('/:id', authenticate, async (req, res) => {
  */
 router.delete(
   '/:id',
-  authenticate,
-  authorize('admin'),
   async (req, res) => {
     try {
       const result = await pool.query(
@@ -354,7 +352,7 @@ router.delete(
   }
 );
 
-router.get("/export/csv", authenticate, authorize("admin"), async (req, res) => {
+router.get("/export/csv", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM profiles");
 
