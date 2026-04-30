@@ -1,7 +1,5 @@
 const express = require('express');
 const axios = require('axios');
-const { v7: uuidv7 } = require('uuid');
-const { authenticate, authorize } = require("../middleware/auth.middleware");
 const router = express.Router();
 const pool = require('../db');
 const { Parser } = require("json2csv");
@@ -34,7 +32,7 @@ function getPagination(page, limit) {
  * POST /
  * (you can decide later if this should be admin-only)
  */
-router.post('/', authenticate, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -117,7 +115,7 @@ router.post('/', authenticate, async (req, res) => {
 /**
  * SEARCH
  */
-router.get('/search', authenticate, async (req, res) => {
+router.get('/search', async (req, res) => {
   try {
     const { q, page, limit } = req.query;
 
