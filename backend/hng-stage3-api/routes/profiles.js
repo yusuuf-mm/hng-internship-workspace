@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const { v7: uuidv7 } = require('uuid');
 const router = express.Router();
 const pool = require('../db');
 const { Parser } = require("json2csv");
@@ -24,13 +25,11 @@ function getPagination(page, limit) {
 }
 
 /* =======================
-   ROUTES (ALL PROTECTED)
+   ROUTES
 ======================= */
 
 /**
  * CREATE PROFILE
- * POST /
- * (you can decide later if this should be admin-only)
  */
 router.post('/', async (req, res) => {
   try {
@@ -170,13 +169,6 @@ router.get('/search', async (req, res) => {
       filters.country_id = countryMap[fromMatch[1].trim()];
     }
 
-    if (!Object.keys(filters).length) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Unable to interpret query'
-      });
-    }
-
     const { pageNum, limitNum, offset } = getPagination(page, limit);
 
     const conditions = [];
@@ -194,7 +186,7 @@ router.get('/search', async (req, res) => {
       params.push(filters.country_id);
       conditions.push(`country_id = $${params.length}`);
     }
-	  A
+
     if (filters.min_age) {
       params.push(filters.min_age);
       conditions.push(`age >= $${params.length}`);
@@ -204,7 +196,25 @@ router.get('/search', async (req, res) => {
       conditions.push(`age <= $${params.length}`);
     }
 
-    const where = `WHERE ${conditions.join(' AND ')}`;
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    /* =======================
+       FIXED: fallback instead of hard reject
+    ======================= */
+    if (!conditions.length) {
+      const fallback = await pool.query(
+        `SELECT * FROM profiles WHERE name ILIKE $1 LIMIT 20`,
+        [`%${query}%`]
+      );
+
+      return res.status(200).json({
+        status: 'success',
+        page: pageNum,
+        limit: limitNum,
+        total: fallback.rows.length,
+        data: fallback.rows
+      });
+    }
 
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM profiles ${where}`, params
@@ -325,32 +335,29 @@ router.get('/:id', async (req, res) => {
 /**
  * DELETE
  */
-router.delete(
-  '/:id',
-  async (req, res) => {
-    try {
-      const result = await pool.query(
-        'DELETE FROM profiles WHERE id = $1 RETURNING id',
-        [req.params.id]
-      );
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM profiles WHERE id = $1 RETURNING id',
+      [req.params.id]
+    );
 
-      if (!result.rows.length) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Profile not found'
-        });
-      }
-
-      return res.status(204).send();
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({
+    if (!result.rows.length) {
+      return res.status(404).json({
         status: 'error',
-        message: 'Server error'
+        message: 'Profile not found'
       });
     }
+
+    return res.status(204).send();
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Server error'
+    });
   }
-);
+});
 
 router.get("/export/csv", async (req, res) => {
   try {
